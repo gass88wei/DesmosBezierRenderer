@@ -29,6 +29,7 @@ jobs:
           update: true
           install: >-
             mingw-w64-x86_64-potrace
+            mingw-w64-x86_64-libagg
             mingw-w64-x86_64-python
             mingw-w64-x86_64-python-pip
             mingw-w64-x86_64-python-numpy
