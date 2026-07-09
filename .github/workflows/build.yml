@@ -46,21 +46,20 @@ jobs:
           tar xzf /tmp/pypotrace-0.3.tar.gz -C /tmp
           cd /tmp/pypotrace-0.3
           python -c "
-import re
-with open('pyproject.toml') as f:
-    content = f.read()
-# Replace poetry build backend with setuptools
-content = re.sub(
-    r'requires = \[[^\]]*\]',
-    'requires = [\"setuptools>=61.0\", \"wheel\", \"Cython\", \"numpy\"]',
-    content
-)
-content = content.replace('build-backend = \"poetry.core.masonry.api\"', 'build-backend = \"setuptools.build_meta\"')
-with open('pyproject.toml', 'w') as f:
-    f.write(content)
-print('=== Patched pyproject.toml ===')
-print(content)
-"
+            import re
+            with open('pyproject.toml') as f:
+                content = f.read()
+            content = re.sub(
+                r'requires = \[[^\]]*\]',
+                'requires = [\"setuptools>=61.0\", \"wheel\", \"Cython\", \"numpy\"]',
+                content
+            )
+            content = content.replace('build-backend = \"poetry.core.masonry.api\"', 'build-backend = \"setuptools.build_meta\"')
+            with open('pyproject.toml', 'w') as f:
+                f.write(content)
+            print('=== Patched pyproject.toml ===')
+            print(content)
+          "
           /tmp/venv/bin/pip install --no-build-isolation .
           /tmp/venv/bin/pip install Flask==2.2.5 Flask_Cors==3.0.10
 
