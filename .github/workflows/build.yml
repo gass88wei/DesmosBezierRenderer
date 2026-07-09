@@ -45,6 +45,7 @@ jobs:
           curl -sLo /tmp/pypotrace-0.3.tar.gz https://files.pythonhosted.org/packages/d7/58/bcd8a2b090e51100e690c61c245974b923911255757fd3367f0aa8c2c0cb/pypotrace-0.3.tar.gz
           tar xzf /tmp/pypotrace-0.3.tar.gz -C /tmp
           cd /tmp/pypotrace-0.3
+          # Patch pyproject.toml: switch from poetry-core to setuptools
           python -c "
             import re
             with open('pyproject.toml') as f:
@@ -57,10 +58,19 @@ jobs:
             content = content.replace('build-backend = \"poetry.core.masonry.api\"', 'build-backend = \"setuptools.build_meta\"')
             with open('pyproject.toml', 'w') as f:
                 f.write(content)
-            print('=== Patched pyproject.toml ===')
-            print(content)
           "
-          /tmp/venv/bin/pip install --no-build-isolation .
+          # Patch setup.py: add CWD to sys.path before importing local build.py
+          python -c "
+            with open('setup.py') as f:
+                lines = f.readlines()
+            for i, line in enumerate(lines):
+                if 'from build import *' in line:
+                    lines.insert(i, 'import sys; sys.path.insert(0, \".\")\n')
+                    break
+            with open('setup.py', 'w') as f:
+                f.writelines(lines)
+          "
+          /tmp/venv/bin/python setup.py install
           /tmp/venv/bin/pip install Flask==2.2.5 Flask_Cors==3.0.10
 
       - name: Verify all imports
