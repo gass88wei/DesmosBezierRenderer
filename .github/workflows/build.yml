@@ -30,20 +30,16 @@ jobs:
           install: >-
             mingw-w64-x86_64-potrace
             mingw-w64-x86_64-python
-            mingw-w64-x86_64-python-pip
             mingw-w64-x86_64-python-numpy
             mingw-w64-x86_64-python-pillow
             mingw-w64-x86_64-python-scikit-image
+            mingw-w64-x86_64-python-flask
+            mingw-w64-x86_64-python-flask-cors
             mingw-w64-x86_64-pyinstaller
-
-      - name: Setup venv and install Python deps
-        run: |
-          python -m venv /tmp/venv
-          /tmp/venv/bin/pip install Flask==2.2.5 Flask_Cors==3.0.10
 
       - name: Verify all imports
         run: |
-          /tmp/venv/bin/python -c "
+          python -c "
           import flask
           import numpy
           import PIL
@@ -58,7 +54,7 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          /tmp/venv/bin/pyinstaller \
+          pyinstaller \
             --noconfirm \
             --onedir \
             --noconsole \
