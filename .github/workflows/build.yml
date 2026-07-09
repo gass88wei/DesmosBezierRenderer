@@ -64,12 +64,12 @@ jobs:
 
       - name: Verify build output
         run: |
-          test -f dist/DesmosBezierRenderer/backend.exe && echo "EXE exists OK"
+          test -f dist/DesmosBezierRenderer/DesmosBezierRenderer.exe && echo "EXE exists OK"
 
       - name: Smoke test
         shell: pwsh
         run: |
-          $proc = Start-Process -FilePath "dist\DesmosBezierRenderer\backend.exe" -NoNewWindow -PassThru
+          $proc = Start-Process -FilePath "dist\DesmosBezierRenderer\DesmosBezierRenderer.exe" -NoNewWindow -PassThru
           Start-Sleep -Seconds 10
           try {
             $res = Invoke-WebRequest -Uri "http://127.0.0.1:5000/calculator" -UseBasicParsing -TimeoutSec 10
