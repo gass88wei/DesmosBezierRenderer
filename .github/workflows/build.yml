@@ -1,4 +1,4 @@
-name: Build & Release
+name: Build and Release
 
 on:
   workflow_dispatch:
@@ -42,8 +42,8 @@ jobs:
       - name: Setup venv and install all Python deps
         run: |
           python -m venv --system-site-packages /tmp/venv
-          /tmp/venv/bin/pip download --no-binary :all: --no-deps pypotrace==0.3
-          tar xzf pypotrace-0.3.tar.gz -C /tmp
+          curl -sLo /tmp/pypotrace-0.3.tar.gz https://files.pythonhosted.org/packages/d7/58/bcd8a2b090e51100e690c61c245974b923911255757fd3367f0aa8c2c0cb/pypotrace-0.3.tar.gz
+          tar xzf /tmp/pypotrace-0.3.tar.gz -C /tmp
           cd /tmp/pypotrace-0.3
           python -c "
 import re
