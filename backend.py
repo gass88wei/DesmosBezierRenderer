@@ -1,13 +1,16 @@
 import json
 import numpy as np
-import potrace
 import os
 import sys
+import re
+import subprocess
+import tempfile
 import traceback
 import webbrowser
 from threading import Timer
 from flask import Flask, request, render_template
 from flask_cors import CORS
+import xml.etree.ElementTree as ET
 
 try:
     import cv2
@@ -60,74 +63,81 @@ def decode_image(file_bytes):
 
 def process_image_to_latex(image, turdsize, alphamax, opttolerance, canny_low, canny_high):
     edged = canny_edge_detect(image, canny_low, canny_high)
-
-    data = edged[::-1]
-    data[data > 1] = 1
-    bmp = potrace.Bitmap(data)
-
-    # 4. Potrace 曲线追踪拟合
-    # turdsize: 噪点抑制大小
-    # alphamax: 转折平滑度 (0.0 表示折线，1.0~1.3 表示平滑曲线)
-    # opttolerance: 数值优化容差 (越小拟合越贴合原边缘)
-    path = bmp.trace(
-        turdsize=turdsize,
-        turnpolicy=potrace.TURNPOLICY_MINORITY,
-        alphamax=alphamax,
-        opticurve=1,
-        opttolerance=opttolerance
-    )
-
-    # 5. 生成公式列表
-    latex = []
-    exprid = 0
-
-    for curve in path.curves:
-        segments = curve.segments
-        start = curve.start_point
-        for segment in segments:
-            x0, y0 = start
-            if segment.is_corner:
-                x1, y1 = segment.c
-                x2, y2 = segment.end_point
-                # 折角处生成两条直线公式
-                latex.append({
-                    'id': f'expr-{exprid + 1}',
-                    'latex': f'((1-t)*{x0:.3f}+t*{x1:.3f},(1-t)*{y0:.3f}+t*{y1:.3f})',
-                    'color': COLOUR
-                })
-                exprid += 1
-                latex.append({
-                    'id': f'expr-{exprid + 1}',
-                    'latex': f'((1-t)*{x1:.3f}+t*{x2:.3f},(1-t)*{y1:.3f}+t*{y2:.3f})',
-                    'color': COLOUR
-                })
-                exprid += 1
-            else:
-                x1, y1 = segment.c1
-                x2, y2 = segment.c2
-                x3, y3 = segment.end_point
-                # 贝塞尔三次曲线公式
-                formula = (
-                    f'((1-t)*((1-t)*((1-t)*{x0:.3f}+t*{x1:.3f})+t*((1-t)*{x1:.3f}+t*{x2:.3f}))+t*((1-t)*((1-t)*{x1:.3f}+t*{x2:.3f})+t*((1-t)*{x2:.3f}+t*{x3:.3f})),'
-                    f'(1-t)*((1-t)*((1-t)*{y0:.3f}+t*{y1:.3f})+t*((1-t)*{y1:.3f}+t*{y2:.3f}))+t*((1-t)*((1-t)*{y1:.3f}+t*{y2:.3f})+t*((1-t)*{y2:.3f}+t*{y3:.3f})))'
-                )
-                latex.append({
-                    'id': f'expr-{exprid + 1}',
-                    'latex': formula,
-                    'color': COLOUR
-                })
-                exprid += 1
-            start = segment.end_point
-
     height, width = image.shape[0], image.shape[1]
+
+    data = (edged[::-1] > 1).astype(np.uint8)
+
+    tmp = tempfile.NamedTemporaryFile(suffix='.pbm', delete=False)
+    try:
+        with open(tmp.name, 'w') as f:
+            f.write(f'P1\n{width} {height}\n')
+            for y in range(height):
+                row = ''
+                for x in range(width):
+                    row += '1' if data[y, x] else '0'
+                f.write(row + '\n')
+
+        svg_file = tmp.name + '.svg'
+        subprocess.run(
+            ['potrace', '-s', '-b', 'svg',
+             '-t', str(turdsize),
+             '-a', f'{alphamax:.2f}',
+             '-O', f'{opttolerance:.2f}',
+             '-o', svg_file, tmp.name],
+            check=True, capture_output=True, timeout=30
+        )
+
+        tree = ET.parse(svg_file)
+        ns = {'svg': 'http://www.w3.org/2000/svg'}
+        path_elems = tree.findall('.//svg:path', ns)
+
+        latex = []
+        exprid = 0
+        for path_elem in path_elems:
+            d = path_elem.get('d', '')
+            cmds = re.findall(r'[MCL]\s*[\d\.\-e\s]+', d)
+            i = 0
+            while i < len(cmds):
+                parts = cmds[i].strip().split()
+                cmd = parts[0]
+                coords = list(map(float, parts[1:]))
+                if cmd == 'M':
+                    start = (coords[0], coords[1])
+                    i += 1
+                elif cmd == 'C' and len(coords) >= 6:
+                    x0, y0 = start
+                    x1, y1 = coords[0], coords[1]
+                    x2, y2 = coords[2], coords[3]
+                    x3, y3 = coords[4], coords[5]
+                    formula = (
+                        f'((1-t)*((1-t)*((1-t)*{x0:.3f}+t*{x1:.3f})+t*((1-t)*{x1:.3f}+t*{x2:.3f}))+t*((1-t)*((1-t)*{x1:.3f}+t*{x2:.3f})+t*((1-t)*{x2:.3f}+t*{x3:.3f})),'
+                        f'(1-t)*((1-t)*((1-t)*{y0:.3f}+t*{y1:.3f})+t*((1-t)*{y1:.3f}+t*{y2:.3f}))+t*((1-t)*((1-t)*{y1:.3f}+t*{y2:.3f})+t*((1-t)*{y2:.3f}+t*{y3:.3f})))'
+                    )
+                    latex.append({'id': f'expr-{exprid + 1}', 'latex': formula, 'color': COLOUR})
+                    exprid += 1
+                    start = (x3, y3)
+                    i += 1
+                elif cmd == 'L' and len(coords) >= 2:
+                    x0, y0 = start
+                    x1, y1 = coords[0], coords[1]
+                    latex.append({'id': f'expr-{exprid + 1}', 'latex': f'((1-t)*{x0:.3f}+t*{x1:.3f},(1-t)*{y0:.3f}+t*{y1:.3f})', 'color': COLOUR})
+                    exprid += 1
+                    start = (x1, y1)
+                    i += 1
+                else:
+                    i += 1
+    finally:
+        os.unlink(tmp.name)
+        if os.path.exists(svg_file):
+            os.unlink(svg_file)
+
     return latex, width, height
 
 
 @app.route('/upload', methods=['POST'])
 def upload():
     """
-    接收用户上传的图片文件并缓存在内存中。使用默认参数进行首次提取。
-    """
+    鎺ユ敹鐢ㄦ埛涓婁紶鐨勫浘鐗囨枃浠跺苟缂撳瓨鍦ㄥ唴瀛樹腑銆備娇鐢ㄩ粯璁ゅ弬鏁拌繘琛岄娆℃彁鍙栥€?    """
     global UPLOADED_IMAGE
     file = request.files.get('image')
     if not file:
@@ -139,8 +149,7 @@ def upload():
 
         UPLOADED_IMAGE = image
         
-        # 使用默认参数计算贝塞尔曲线
-        latex_list, width, height = process_image_to_latex(
+        # 浣跨敤榛樿鍙傛暟璁＄畻璐濆灏旀洸绾?        latex_list, width, height = process_image_to_latex(
             image,
             turdsize=DEFAULT_TURDSIZE,
             alphamax=DEFAULT_ALPHAMAX,
@@ -162,8 +171,7 @@ def upload():
 @app.route('/process', methods=['POST'])
 def process():
     """
-    接收最新滑块参数，对已上传的图片重新做边缘检测和曲线追踪。
-    """
+    鎺ユ敹鏈€鏂版粦鍧楀弬鏁帮紝瀵瑰凡涓婁紶鐨勫浘鐗囬噸鏂板仛杈圭紭妫€娴嬪拰鏇茬嚎杩借釜銆?    """
     global UPLOADED_IMAGE
     if UPLOADED_IMAGE is None:
         return {'error': 'No image uploaded yet. Please upload an image first.'}, 400
@@ -198,13 +206,12 @@ def process():
 @app.route("/calculator")
 def client():
     """
-    渲染前端界面，传递 Desmos 开发者 API key。
-    """
+    娓叉煋鍓嶇鐣岄潰锛屼紶閫?Desmos 寮€鍙戣€?API key銆?    """
     return render_template('index.html', api_key='dcb31709b452b1cf9dc26972add0fda6')
 
 
 if __name__ == '__main__':
-    # 自动在浏览器中打开主页
+    # 鑷姩鍦ㄦ祻瑙堝櫒涓墦寮€涓婚〉
     def open_browser():
         webbrowser.open(f'http://127.0.0.1:{PORT}/calculator')
     Timer(1, open_browser).start()

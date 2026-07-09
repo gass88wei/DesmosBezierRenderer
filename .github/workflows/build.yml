@@ -29,49 +29,16 @@ jobs:
           update: true
           install: >-
             mingw-w64-x86_64-potrace
-            mingw-w64-x86_64-libagg
             mingw-w64-x86_64-python
             mingw-w64-x86_64-python-pip
             mingw-w64-x86_64-python-numpy
             mingw-w64-x86_64-python-pillow
             mingw-w64-x86_64-python-scikit-image
             mingw-w64-x86_64-pyinstaller
-            mingw-w64-x86_64-pkg-config
-            mingw-w64-x86_64-cython
-            mingw-w64-x86_64-gcc
 
-      - name: Setup venv and install all Python deps
+      - name: Setup venv and install Python deps
         run: |
-          python -m venv --system-site-packages /tmp/venv
-          curl -sLo /tmp/pypotrace-0.3.tar.gz https://files.pythonhosted.org/packages/d7/58/bcd8a2b090e51100e690c61c245974b923911255757fd3367f0aa8c2c0cb/pypotrace-0.3.tar.gz
-          tar xzf /tmp/pypotrace-0.3.tar.gz -C /tmp
-          cd /tmp/pypotrace-0.3
-          # Patch pyproject.toml: switch from poetry-core to setuptools
-          python -c "
-            import re
-            with open('pyproject.toml') as f:
-                content = f.read()
-            content = re.sub(
-                r'requires = \[[^\]]*\]',
-                'requires = [\"setuptools>=61.0\", \"wheel\", \"Cython\", \"numpy\"]',
-                content
-            )
-            content = content.replace('build-backend = \"poetry.core.masonry.api\"', 'build-backend = \"setuptools.build_meta\"')
-            with open('pyproject.toml', 'w') as f:
-                f.write(content)
-          "
-          # Patch setup.py: add CWD to sys.path before importing local build.py
-          python -c "
-            with open('setup.py') as f:
-                lines = f.readlines()
-            for i, line in enumerate(lines):
-                if 'from build import *' in line:
-                    lines.insert(i, 'import sys; sys.path.insert(0, \".\")\n')
-                    break
-            with open('setup.py', 'w') as f:
-                f.writelines(lines)
-          "
-          /tmp/venv/bin/python setup.py install
+          python -m venv /tmp/venv
           /tmp/venv/bin/pip install Flask==2.2.5 Flask_Cors==3.0.10
 
       - name: Verify all imports
@@ -81,14 +48,12 @@ jobs:
           import numpy
           import PIL
           import skimage
-          import potrace
           print('All core imports OK')
           try:
               import cv2
               print('OpenCV available')
           except ImportError:
               print('OpenCV not available (using skimage fallback)')
-          print('Backend:', 'opencv' if __import__('sys').modules.get('cv2') else 'skimage')
           "
 
       - name: Build with PyInstaller
@@ -99,9 +64,6 @@ jobs:
             --noconsole \
             --name "DesmosBezierRenderer" \
             --add-data "frontend;frontend" \
-            --hidden-import "potrace.bezier" \
-            --hidden-import "potrace.agg" \
-            --hidden-import "potrace.agg.curves" \
             backend.py
 
       - name: Verify build output
