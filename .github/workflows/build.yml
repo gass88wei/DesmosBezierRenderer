@@ -36,15 +36,16 @@ jobs:
             mingw-w64-x86_64-python-scikit-image
             mingw-w64-x86_64-pyinstaller
             mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-cython
             mingw-w64-x86_64-gcc
 
       - name: Build pypotrace from source
         run: |
-          pip install pypotrace==0.3
+          pip install --break-system-packages --no-build-isolation pypotrace==0.3
 
       - name: Install pure-Python dependencies
         run: |
-          pip install Flask==2.2.5 Flask_Cors==3.0.10
+          pip install --break-system-packages Flask==2.2.5 Flask_Cors==3.0.10
 
       - name: Verify all imports
         run: |
