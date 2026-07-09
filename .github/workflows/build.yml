@@ -39,17 +39,15 @@ jobs:
             mingw-w64-x86_64-cython
             mingw-w64-x86_64-gcc
 
-      - name: Build pypotrace from source
+      - name: Setup venv and install all Python deps
         run: |
-          pip install --break-system-packages --no-build-isolation pypotrace==0.3
-
-      - name: Install pure-Python dependencies
-        run: |
-          pip install --break-system-packages Flask==2.2.5 Flask_Cors==3.0.10
+          python -m venv /tmp/venv
+          /tmp/venv/bin/pip install pypotrace==0.3
+          /tmp/venv/bin/pip install Flask==2.2.5 Flask_Cors==3.0.10
 
       - name: Verify all imports
         run: |
-          python -c "
+          /tmp/venv/bin/python -c "
           import flask
           import numpy
           import PIL
@@ -66,7 +64,7 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          pyinstaller \
+          /tmp/venv/bin/pyinstaller \
             --noconfirm \
             --onedir \
             --noconsole \
