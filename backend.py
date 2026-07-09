@@ -137,7 +137,8 @@ def process_image_to_latex(image, turdsize, alphamax, opttolerance, canny_low, c
 @app.route('/upload', methods=['POST'])
 def upload():
     """
-    鎺ユ敹鐢ㄦ埛涓婁紶鐨勫浘鐗囨枃浠跺苟缂撳瓨鍦ㄥ唴瀛樹腑銆備娇鐢ㄩ粯璁ゅ弬鏁拌繘琛岄娆℃彁鍙栥€?    """
+    接收用户上传的图片文件并缓存在内存中。使用默认参数进行首次提取。
+    """
     global UPLOADED_IMAGE
     file = request.files.get('image')
     if not file:
@@ -149,7 +150,8 @@ def upload():
 
         UPLOADED_IMAGE = image
         
-        # 浣跨敤榛樿鍙傛暟璁＄畻璐濆灏旀洸绾?        latex_list, width, height = process_image_to_latex(
+        # 使用默认参数计算贝塞尔曲线
+        latex_list, width, height = process_image_to_latex(
             image,
             turdsize=DEFAULT_TURDSIZE,
             alphamax=DEFAULT_ALPHAMAX,
@@ -171,7 +173,8 @@ def upload():
 @app.route('/process', methods=['POST'])
 def process():
     """
-    鎺ユ敹鏈€鏂版粦鍧楀弬鏁帮紝瀵瑰凡涓婁紶鐨勫浘鐗囬噸鏂板仛杈圭紭妫€娴嬪拰鏇茬嚎杩借釜銆?    """
+    接收最新滑块参数，对已上传的图片重新做边缘检测和曲线追踪。
+    """
     global UPLOADED_IMAGE
     if UPLOADED_IMAGE is None:
         return {'error': 'No image uploaded yet. Please upload an image first.'}, 400
@@ -206,12 +209,13 @@ def process():
 @app.route("/calculator")
 def client():
     """
-    娓叉煋鍓嶇鐣岄潰锛屼紶閫?Desmos 寮€鍙戣€?API key銆?    """
+    渲染前端界面，传递 Desmos 开发者 API key。
+    """
     return render_template('index.html', api_key='dcb31709b452b1cf9dc26972add0fda6')
 
 
 if __name__ == '__main__':
-    # 鑷姩鍦ㄦ祻瑙堝櫒涓墦寮€涓婚〉
+    # 自动在浏览器中打开主页
     def open_browser():
         webbrowser.open(f'http://127.0.0.1:{PORT}/calculator')
     Timer(1, open_browser).start()
