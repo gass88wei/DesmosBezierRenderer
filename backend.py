@@ -81,15 +81,6 @@ def get_subprocess_kwargs():
         kwargs['startupinfo'] = si
     return kwargs
 
-
-
-def get_potrace_path():
-    exe_dir = os.path.dirname(sys.executable)
-    bundled = os.path.join(exe_dir, 'potrace_bundle', 'potrace.exe')
-    if os.path.exists(bundled):
-        return bundled
-    return 'potrace'
-
 app = Flask(__name__, template_folder=get_resource_path('frontend'))
 CORS(app)
 PORT = 5000
@@ -131,8 +122,9 @@ def process_image_to_latex(image, turdsize, alphamax, opttolerance, canny_low, c
     data = (edged[::-1] > 1).astype(np.uint8)
 
     tmp = tempfile.NamedTemporaryFile(suffix='.pbm', delete=False)
+    tmp.close()
     try:
-        with open(tmp.name, 'w') as f:
+        with open(tmp.name, 'w', encoding='utf-8') as f:
             f.write(f'P1\n{width} {height}\n')
             for y in range(height):
                 row = ''
