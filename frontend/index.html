@@ -643,8 +643,13 @@
                 method: 'POST',
                 body: formData
             })
-            .then(res => {
-                if (!res.ok) throw new Error("上传失败");
+            .then(async res => {
+                if (!res.ok) {
+                    const body = await res.text();
+                    let detail = res.statusText;
+                    try { const j = JSON.parse(body); detail = j.error || detail; } catch (_) {}
+                    throw new Error(detail);
+                }
                 return res.json();
             })
             .then(data => {
@@ -671,7 +676,7 @@
                 renderCurves(data.result);
             })
             .catch(err => {
-                statusEl.innerHTML = "<span style='color:#ff3b30;'>载入失败，请重试</span>";
+                statusEl.innerHTML = `<span style='color:#ff3b30;'>载入失败：${err.message}</span>`;
                 console.error(err);
             });
         }
@@ -702,11 +707,18 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(params)
             })
-            .then(res => res.json())
+            .then(async res => {
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Process failed');
+                return data;
+            })
             .then(data => {
                 renderCurves(data.result);
             })
-            .catch(err => console.error("Process error:", err));
+            .catch(err => {
+                statusEl.innerHTML = `<span style='color:#ff3b30;'>处理失败：${err.message}</span>`;
+                console.error("Process error:", err);
+            });
         }
 
         // 3. 渲染曲线逻辑
