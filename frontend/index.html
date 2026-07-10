@@ -754,16 +754,14 @@
             if (!hasImage || currentLatexList.length === 0) return;
             isImported = true;
 
-            var state = calculator.getState();
-            for (var expr of state.expressions.list) {
-                if (expr.id && expr.id.startsWith('expr-')) {
-                    expr.secret = false;
-                    expr.hidden = false;
-                }
+            for (var expr of currentLatexList) {
+                calculator.setExpression({
+                    id: expr.id,
+                    secret: false,
+                    hidden: false
+                });
             }
-            calculator.setState(state, {allowUndo: false});
-            
-            // 锁定确定导入按钮
+
             document.getElementById('confirm-btn').innerText = "已导入公式列表";
             document.getElementById('confirm-btn').disabled = true;
         }
