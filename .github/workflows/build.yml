@@ -6,6 +6,9 @@ on:
     branches: [main, master]
     tags: ['v*']
   pull_request:
+
+permissions:
+  contents: write
     branches: [main, master]
 
 concurrency:
@@ -96,3 +99,5 @@ jobs:
         with:
           files: DesmosBezierRenderer-Windows.zip
           generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
