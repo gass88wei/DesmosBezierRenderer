@@ -27,6 +27,14 @@ def get_resource_path(relative_path):
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.join(os.path.abspath("."), relative_path)
 
+
+def get_potrace_path():
+    exe_dir = os.path.dirname(sys.executable)
+    bundled = os.path.join(exe_dir, 'potrace_bundle', 'potrace.exe')
+    if os.path.exists(bundled):
+        return bundled
+    return 'potrace'
+
 app = Flask(__name__, template_folder=get_resource_path('frontend'))
 CORS(app)
 PORT = 5000
@@ -79,7 +87,7 @@ def process_image_to_latex(image, turdsize, alphamax, opttolerance, canny_low, c
 
         svg_file = tmp.name + '.svg'
         subprocess.run(
-            ['potrace', '-s', '-b', 'svg',
+            [get_potrace_path(), '-s', '-b', 'svg',
              '-t', str(turdsize),
              '-a', f'{alphamax:.2f}',
              '-O', f'{opttolerance:.2f}',

@@ -39,20 +39,17 @@ jobs:
             mingw-w64-x86_64-python-flask-cors
             mingw-w64-x86_64-pyinstaller
 
-      - name: Verify all imports
+      - name: Bundle potrace binary
         run: |
-          python -c "
-          import flask
-          import numpy
-          import PIL
-          import skimage
-          print('All core imports OK')
-          try:
-              import cv2
-              print('OpenCV available')
-          except ImportError:
-              print('OpenCV not available (using skimage fallback)')
-          "
+          mkdir -p potrace_bundle
+          cp /mingw64/bin/potrace.exe potrace_bundle/
+          for dll in $(objdump -p /mingw64/bin/potrace.exe | grep "DLL Name" | sed 's/.*DLL Name: //'); do
+            dllpath="/mingw64/bin/$dll"
+            if [ -f "$dllpath" ]; then
+              cp "$dllpath" potrace_bundle/
+            fi
+          done
+          ls -la potrace_bundle/
 
       - name: Build with PyInstaller
         run: |
@@ -62,6 +59,7 @@ jobs:
             --noconsole \
             --name "DesmosBezierRenderer" \
             --add-data "frontend;frontend" \
+            --add-binary "potrace_bundle;potrace_bundle" \
             backend.py
 
       - name: Verify build output
