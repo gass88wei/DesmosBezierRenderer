@@ -754,13 +754,24 @@
             if (!hasImage || currentLatexList.length === 0) return;
             isImported = true;
 
+            // Desmos secret is immutable after creation.
+            // So we use NEW unique IDs (not expr-*) to bypass that.
+            var state = calculator.getState();
+            state.expressions.list = state.expressions.list.filter(function(ex) {
+                return !(ex.id && ex.id.startsWith('expr-'));
+            });
+            var idx = 1;
             for (var expr of currentLatexList) {
-                calculator.setExpression({
-                    id: expr.id,
+                state.expressions.list.push({
+                    id: 'i-' + (idx++),
+                    latex: expr.latex,
+                    color: expr.color,
+                    type: "expression",
                     secret: false,
                     hidden: false
                 });
             }
+            calculator.setState(state, {allowUndo: false});
 
             document.getElementById('confirm-btn').innerText = "已导入公式列表";
             document.getElementById('confirm-btn').disabled = true;

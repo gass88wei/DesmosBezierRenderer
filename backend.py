@@ -152,37 +152,50 @@ def process_image_to_latex(image, turdsize, alphamax, opttolerance, canny_low, c
         exprid = 0
         for path_elem in path_elems:
             d = path_elem.get('d', '')
-            cmds = re.findall(r'[MCL]\s*[\d\.\-e\s]+', d)
-            i = 0
-            while i < len(cmds):
-                parts = cmds[i].strip().split()
-                cmd = parts[0]
-                coords = list(map(float, parts[1:]))
-                if cmd == 'M':
-                    start = (coords[0], coords[1])
-                    i += 1
-                elif cmd == 'C' and len(coords) >= 6:
-                    x0, y0 = start
-                    x1, y1 = coords[0], coords[1]
-                    x2, y2 = coords[2], coords[3]
-                    x3, y3 = coords[4], coords[5]
-                    formula = (
-                        f'((1-t)*((1-t)*((1-t)*{x0:.3f}+t*{x1:.3f})+t*((1-t)*{x1:.3f}+t*{x2:.3f}))+t*((1-t)*((1-t)*{x1:.3f}+t*{x2:.3f})+t*((1-t)*{x2:.3f}+t*{x3:.3f})),'
-                        f'(1-t)*((1-t)*((1-t)*{y0:.3f}+t*{y1:.3f})+t*((1-t)*{y1:.3f}+t*{y2:.3f}))+t*((1-t)*((1-t)*{y1:.3f}+t*{y2:.3f})+t*((1-t)*{y2:.3f}+t*{y3:.3f})))'
-                    )
-                    latex.append({'id': f'expr-{exprid + 1}', 'latex': formula, 'color': COLOUR})
-                    exprid += 1
-                    start = (x3, y3)
-                    i += 1
-                elif cmd == 'L' and len(coords) >= 2:
-                    x0, y0 = start
-                    x1, y1 = coords[0], coords[1]
-                    latex.append({'id': f'expr-{exprid + 1}', 'latex': f'((1-t)*{x0:.3f}+t*{x1:.3f},(1-t)*{y0:.3f}+t*{y1:.3f})', 'color': COLOUR})
-                    exprid += 1
-                    start = (x1, y1)
-                    i += 1
+            # Match any SVG path command (uppercase or lowercase) with its coordinates
+            cmds = re.findall(r'[MmCcLl]\s*[\d\.\-e\s]+', d)
+            for cmd_str in cmds:
+                parts = cmd_str.strip().split()
+                raw = parts[0]
+                cmd = raw[0].upper()        # first char, uppercased
+                # separate command letter from leading digits
+                extra = raw[1:]
+                if extra:
+                    coords = [float(extra)] + list(map(float, parts[1:]))
                 else:
-                    i += 1
+                    coords = list(map(float, parts[1:]))
+
+                if cmd == 'M':
+                    if len(coords) >= 2:
+                        start = (coords[0], coords[1])
+                elif cmd == 'C':
+                    # split into groups of 6 (cubic bezier)
+                    for k in range(0, len(coords) - 5, 6):
+                        x0, y0 = start
+                        x1, y1 = coords[k], coords[k+1]
+                        x2, y2 = coords[k+2], coords[k+3]
+                        x3, y3 = coords[k+4], coords[k+5]
+                        if raw[0].islower():
+                            x1 += x0; y1 += y0
+                            x2 += x0; y2 += y0
+                            x3 += x0; y3 += y0
+                        formula = (
+                            f'((1-t)*((1-t)*((1-t)*{x0:.3f}+t*{x1:.3f})+t*((1-t)*{x1:.3f}+t*{x2:.3f}))+t*((1-t)*((1-t)*{x1:.3f}+t*{x2:.3f})+t*((1-t)*{x2:.3f}+t*{x3:.3f})),'
+                            f'(1-t)*((1-t)*((1-t)*{y0:.3f}+t*{y1:.3f})+t*((1-t)*{y1:.3f}+t*{y2:.3f}))+t*((1-t)*((1-t)*{y1:.3f}+t*{y2:.3f})+t*((1-t)*{y2:.3f}+t*{y3:.3f})))'
+                        )
+                        latex.append({'id': f'expr-{exprid + 1}', 'latex': formula, 'color': COLOUR})
+                        exprid += 1
+                        start = (x3, y3)
+                elif cmd == 'L':
+                    # split into groups of 2 (line segments)
+                    for k in range(0, len(coords) - 1, 2):
+                        x0, y0 = start
+                        x1, y1 = coords[k], coords[k+1]
+                        if raw[0].islower():
+                            x1 += x0; y1 += y0
+                        latex.append({'id': f'expr-{exprid + 1}', 'latex': f'((1-t)*{x0:.3f}+t*{x1:.3f},(1-t)*{y0:.3f}+t*{y1:.3f})', 'color': COLOUR})
+                        exprid += 1
+                        start = (x1, y1)
     finally:
         os.unlink(tmp.name)
         if os.path.exists(svg_file):

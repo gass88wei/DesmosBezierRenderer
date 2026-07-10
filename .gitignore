@@ -17,3 +17,6 @@ build/
 .DS_Store
 __pycache__/
 cache.json
+desmos-debug.log
+potrace_bundle/
+test_*.py
